@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth0 Login Redirect</title>
+    <script src="https://cdn.auth0.com/js/auth0/9.13/auth0.min.js"></script>
+    <script>
+        var webAuth;
+
+        window.onload = function() {
+            setAuth0Params();
+        };
+
+        function setAuth0Params() {
+            var domain = document.getElementById('domain').value;
+            var clientID = document.getElementById('clientID').value;
+            var redirectUri = document.getElementById('redirectUri').value || window.location.href;
+            var responseType = document.getElementById('responseType').value;
+            var scope = document.getElementById('scope').value;
+            var audience = document.getElementById('audience').value;
+
+            webAuth = new auth0.WebAuth({
+            domain: domain,
+            clientID: clientID,
+            redirectUri: redirectUri,
+            responseType: responseType,
+            scope: scope,
+            audience: audience
+            });
+        }
+
+        function login() {
+            setAuth0Params();
+            webAuth.authorize();
+        }
+
+        function logout() {
+            setAuth0Params();
+            webAuth.logout({
+                returnTo: window.location.href,
+                clientID: document.getElementById('clientID').value
+            });
+        }
+
+        function parseHash() {
+            webAuth.parseHash(function(err, authResult) {
+                if (authResult && authResult.accessToken && authResult.idToken) {
+                    window.location.hash = '';
+                    webAuth.client.userInfo(authResult.accessToken, function(err, user) {
+                        if (user) {
+                            document.getElementById('parseHash').innerHTML = `
+                                <p>Access token: ${authResult.accessToken}</p>
+                                <p>ID token: ${authResult.idToken}</p>
+                                <p>Name: ${user.name}</p>
+                                <p>Email: ${user.email}</p>
+                            `;
+                        }
+                    });
+                } else if (err) {
+                    console.log(err);
+                }
+            });
+        }
+
+        function checkSession() {
+            setAuth0Params();
+            webAuth.checkSession({}, function(err, authResult) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                if (authResult && authResult.accessToken && authResult.idToken) {
+                    webAuth.client.userInfo(authResult.accessToken, function(err, user) {
+                        if (user) {
+                            document.getElementById('checkSession').innerHTML = `
+                                <p>Access token: ${authResult.accessToken}</p>
+                                <p>ID token: ${authResult.idToken}</p>
+                                <p>Name: ${user.name}</p>
+                                <p>Email: ${user.email}</p>
+                            `;
+                        }
+                    });
+                }
+            });
+        }
+
+        
+    </script>
+</head>
+<body>
+    <h1>Auth0</h1>
+    <h2>Auth0でログイン</h2>
+    <form id="auth0-params">
+        <label for="domain">Domain:</label>
+        <input type="text" id="domain" name="domain" value=""><br>
+        <label for="clientID">Client ID:</label>
+        <input type="text" id="clientID" name="clientID" value=""><br>
+        <label for="redirectUri">Redirect URI:</label>
+        <input type="text" id="redirectUri" name="redirectUri" value=""><br>
+        <label for="responseType">Response Type:</label>
+        <input type="text" id="responseType" name="responseType" value="token id_token"><br>
+        <label for="scope">Scope:</label>
+        <input type="text" id="scope" name="scope" value="openid profile email"><br>
+        <label for="audience">Audience:</label>
+        <input type="text" id="audience" name="audience" value="https://example.com"><br>
+    </form>
+    <button onclick="login()">Auth0ログイン</button>
+    <button onclick="logout()">Auth0ログアウト</button>
+    <h2>ログイン情報取得</h2>
+    <button onclick="parseHash()">URLハッシュから情報取得</button>
+    <div id="parseHash"></div>
+    <button onclick="checkSession()">セッションから情報取得</button>
+    <div id="checkSession"></div>
+
+    <script>
+        
+    </script>
+</body>
+</html>

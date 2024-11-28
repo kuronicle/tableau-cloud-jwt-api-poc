@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth0 Login Redirect</title>
+    <script src="https://cdn.auth0.com/js/auth0/9.13/auth0.min.js"></script>
+    <script>
+        var webAuth;
+
+        window.onload = function () {
+            setAuth0Params();
+        };
+
+        function setAuth0Params() {
+            var domain = document.getElementById('domain').value;
+            var clientID = document.getElementById('clientID').value;
+            var redirectUri = document.getElementById('redirectUri').value || window.location.href;
+            var responseType = document.getElementById('responseType').value;
+            var scope = document.getElementById('scope').value;
+            var audience = document.getElementById('audience').value;
+
+            webAuth = new auth0.WebAuth({
+                domain: domain,
+                clientID: clientID,
+                redirectUri: redirectUri,
+                responseType: responseType,
+                scope: scope,
+                audience: audience
+            });
+        }
+
+        function login() {
+            setAuth0Params();
+            webAuth.authorize();
+        }
+
+        function logout() {
+            setAuth0Params();
+            webAuth.logout({
+                returnTo: window.location.href,
+                clientID: document.getElementById('clientID').value
+            });
+        }
+
+        function parseHash() {
+            webAuth.parseHash(function (err, authResult) {
+                if (authResult && authResult.accessToken && authResult.idToken) {
+                    window.location.hash = '';
+                    webAuth.client.userInfo(authResult.accessToken, function (err, user) {
+                        if (user) {
+                            document.getElementById('parseHash').innerHTML = `
+                                <p>Access token: ${authResult.accessToken}</p>
+                                <p>ID token: ${authResult.idToken}</p>
+                                <p>Name: ${user.name}</p>
+                                <p>Email: ${user.email}</p>
+                            `;
+                        }
+                    });
+                } else if (err) {
+                    console.log(err);
+                }
+            });
+        }
+
+        function checkSession() {
+            setAuth0Params();
+            webAuth.checkSession({}, function (err, authResult) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                if (authResult && authResult.accessToken && authResult.idToken) {
+                    webAuth.client.userInfo(authResult.accessToken, function (err, user) {
+                        if (user) {
+                            document.getElementById('checkSession').innerHTML = `
+                                <p>Access token: ${authResult.accessToken}</p>
+                                <p>ID token: ${authResult.idToken}</p>
+                                <p>Name: ${user.name}</p>
+                                <p>Email: ${user.email}</p>
+                            `;
+                        }
+                    });
+                }
+            });
+        }
+
+        // JWT生成ボタン押下時にJWTを生成する
+        function generateJwt() {
+            // JWT生成APIからJWTを取得する
+            const jwtGenerateApiUrl = document.getElementById('jwt_generate_api_url').value;
+
+            webAuth.checkSession({}, function (err, authResult) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                if (authResult && authResult.idToken) {
+                    const idToken = authResult.idToken;
+                    fetch(`${jwtGenerateApiUrl}?token=${idToken}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const tableauToken = data.tableauToken;
+                            document.getElementById('generated_jwt').value = tableauToken;
+                        })
+                        .catch(error => console.error('Error:', error));
+                }
+            });
+
+        };
+
+        // 埋め込みボタン押下時にダッシュボードを表示する
+        function embedDashboard() {
+            const dashborardUrl = document.getElementById('dashboard_url').value;
+            const jwt = document.getElementById('generated_jwt').value;
+
+            const tableauViz = document.getElementById('tableauViz');
+            tableauViz.token = jwt;
+            tableauViz.src = dashborardUrl;
+        };
+    </script>
+</head>
+
+<body>
+    <h1>Auth0</h1>
+    <h2>Auth0ログイン</h2>
+    <form id="auth0-params">
+        <label for="domain">Domain:</label>
+        <input type="text" id="domain" name="domain" value=""><br>
+        <label for="clientID">Client ID:</label>
+        <input type="text" id="clientID" name="clientID" value=""><br>
+        <label for="redirectUri">Redirect URI:</label>
+        <input type="text" id="redirectUri" name="redirectUri" value=""><br>
+        <label for="responseType">Response Type:</label>
+        <input type="text" id="responseType" name="responseType" value="token id_token"><br>
+        <label for="scope">Scope:</label>
+        <input type="text" id="scope" name="scope" value="openid profile email"><br>
+        <label for="audience">Audience:</label>
+        <input type="text" id="audience" name="audience" value="https://example.com"><br>
+    </form>
+    <button onclick="login()">Auth0ログイン</button>
+    <button onclick="logout()">Auth0ログアウト</button>
+    <h2>Tableauダッシュボード埋め込み</h2>
+    <form id="jwtGenerateForm">
+        <ul>
+            <li>
+                <label for="jwt_generate_api_url">JWT generate API URL:</label>
+                <input type="text" id="jwt_generate_api_url" name="jwt_generate_api_url" value="">
+            </li>
+        </ul>
+        <button onclick="generateJwt()">JWT生成</button>
+    </form>
+    <h3>JWT</h3>
+    <div>
+        <ul>
+            <li>
+                <label for="generated_jwt">JWT:</label>
+                <input type="text" id="generated_jwt">
+            </li>
+        </ul>
+    </div>
+    <h3>埋め込みダッシュボード</h3>
+    <ul>
+        <li>
+            <label for="dashboard_url">ダッシュボードURL:</label>
+            <input type="text" id="dashboard_url" name="dashboard_url" value="">
+        </li>
+    </ul>
+    <button type="button" id="embed_dashboard" onclick="embedDashboard()">ダッシュボード埋め込み</button>
+
+    <script type="module" src="https://embedding.tableauusercontent.com/tableau.embedding.3.1.0.min.js"></script>
+    <tableau-viz id="tableauViz" src="" token="" />
+
+    <script>
+
+
+    </script>
+    
+</body>
+
+</html>

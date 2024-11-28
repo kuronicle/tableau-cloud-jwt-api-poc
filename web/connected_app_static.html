@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+</head>
+<body>
+    <h2>Tableau埋め込みダッシュボード</h2>
+    <h3>Tableau Cloud 情報</h3>
+    <form id="jwtGenerateForm">
+        <ul>
+            <li>
+                <label for="tableau_user_name">User Name:</label>
+                <input type="text" id="tableau_user_name" name="tableau_user_name">
+            </li>
+            <li>Connected App
+                <ul>
+                    <li>
+                        <label for="client_id">Client ID:</label>
+                        <input type="text" id="client_id" name="client_id">
+                    </li>
+                    <li>
+                        <label for="secret_id">Secret ID:</label>
+                        <input type="text" id="secret_id" name="secret_id">
+                    </li>
+                    <li>
+                        <label for="secret_value">Secret Value:</label>
+                        <input type="text" id="secret_value" name="secret_value">
+                    </li>
+                </ul>
+            </li>
+
+        </ul>
+        <button type="submit">JWT生成</button>
+    </form>
+    <h3>JWT</h3>
+    <div>
+        <ul>
+            <li>
+                <label for="generated_jwt">JWT:</label>
+                <input type="text" id="generated_jwt">
+            </li>
+        </ul>
+    </div>
+    <h3>埋め込みダッシュボード</h3>
+    <ul>
+        <li>
+            <label for="dashboard_url">ダッシュボードURL:</label>
+            <input type="text" id="dashboard_url" name="dashboard_url">
+        </li>
+    </ul>
+    <button type="button" id="embed_dashboard">ダッシュボード埋め込み</button>
+
+    <script type="module" src="https://embedding.tableauusercontent.com/tableau.embedding.3.1.0.min.js"></script>
+    <tableau-viz id="tableauViz"
+        src=""
+        token=""/>
+
+    <script>
+
+        // JWT生成ボタン押下時にJWTを生成する
+        document.getElementById('jwtGenerateForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const payload = {
+                "sub": document.getElementById('tableau_user_name').value,
+                "aud": "tableau",
+                "exp": Math.floor(Date.now() / 1000) + 60 * 10,
+                "jti": Math.random().toString(36).slice(-8),
+                "scp": ["tableau:views:embed", "tableau:views:embed_authoring"],
+            };
+
+            const secret = document.getElementById('secret_value').value;
+
+            function generateJWT(payload, secret) {
+                const header = {
+                    "alg": "HS256",
+                    "typ": "JWT",
+                    "kid": document.getElementById('secret_id').value,
+                    "iss": document.getElementById('client_id').value
+                };
+
+                const base64UrlEncode = (obj) => {
+                    return btoa(JSON.stringify(obj))
+                        .replace(/=/g, '')
+                        .replace(/\+/g, '-')
+                        .replace(/\//g, '_');
+                };
+
+                const headerEncoded = base64UrlEncode(header);
+                const payloadEncoded = base64UrlEncode(payload);
+                const signature = CryptoJS.HmacSHA256(headerEncoded + "." + payloadEncoded, secret).toString(CryptoJS.enc.Base64)
+                    .replace(/=/g, '')
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_');
+
+                return `${headerEncoded}.${payloadEncoded}.${signature}`;
+            }
+
+            const token = generateJWT(payload, secret);
+            document.getElementById('generated_jwt').value = token;
+        });
+
+        // 埋め込みボタン押下時にダッシュボードを表示する
+        document.getElementById('embed_dashboard').addEventListener('click', function(event) {
+            const dashborardUrl = document.getElementById('dashboard_url').value;
+            const jwt = document.getElementById('generated_jwt').value;
+
+            const tableauViz = document.getElementById('tableauViz');
+            tableauViz.token = jwt;
+            tableauViz.src = dashborardUrl;
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
+</body>
+
+</html>
